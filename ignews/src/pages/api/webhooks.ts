@@ -22,9 +22,12 @@ export const config = {
   }
 }
 
-//configurando os evento relevantes
+//configurando os evento relevantes, que o stripe são obrigado a ouvir
 const relevantEvents = new Set([
-  'checkout.session.completed'
+  'checkout.session.completed',
+  'customer.subscriptions.created', //nova assinatura
+  'customer.subscriptions.updated', //atualizacao de assinatura
+  'customer.subscriptions.deleted', //delecao da assinatura
 ])
 
 export default  async (req: NextApiRequest, res: NextApiResponse) => {
@@ -50,10 +53,21 @@ export default  async (req: NextApiRequest, res: NextApiResponse) => {
       try {
         //ouvindo os eventos
         switch(type) {
+          case 'customer.subscription.updated':
+          case 'customer.subscription.deleted':
+
+            //pegando o subscription
+            const subscription = event.data.object as Stripe.Subscription;
+            await saveSubscription(subscription.id,
+              subscription.customer.toString(),
+              false
+            )
+
+            break;
           case 'checkout.session.completed':
             //salvando o usuario
             const checkoutSession = event.data.object as Stripe.Checkout.Session;
-            await saveSubscription(checkoutSession.subscription.toString(), checkoutSession.customer.toString())
+            await saveSubscription(checkoutSession.subscription.toString(), checkoutSession.customer.toString(), true)
 
             break;
         // não houve tratativa

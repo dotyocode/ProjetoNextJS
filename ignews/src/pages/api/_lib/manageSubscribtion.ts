@@ -3,7 +3,7 @@ import { query as q } from 'faunadb'
 import { fauna } from '../../../service/fauna';
 import { stripe } from '../../../service/stripe';
 
-export async function saveSubscription(subscriptionId: string, customerId: string) {
+export async function saveSubscription(subscriptionId: string, customerId: string, createAction = false) {
   //salvando informações de pagamento no banco de dados
   //crie primeiro um indice no fauna
 
@@ -29,10 +29,28 @@ export async function saveSubscription(subscriptionId: string, customerId: strin
       status: subscription.status,
       price_id: subscription.items.data[0].price.id,      
     }
-    await fauna.query(
-      q.Create(
-        q.Collection('subscriptions'),
-        { data: subscriptionData }
+    if(createAction) {
+      // criando uma subscription
+      await fauna.query(
+        q.Create(
+          q.Collection('subscriptions'),
+          { data: subscriptionData }
+        )
       )
-    )
+    } else {
+      await fauna.query(
+        q.Replace(
+          q.Select(
+            "ref",
+            q.Get(
+              q.Match(
+                q.Index("subscription_by_id"),
+                subscriptionId
+              )
+            )
+          ),
+          { data: subscriptionData }
+        )
+      )
+    }
 }
